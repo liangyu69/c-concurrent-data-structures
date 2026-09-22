@@ -18,10 +18,10 @@ struct ConcurrentQueue{
 ConcurrentQueue*queue_create(int capacity){
     if(capacity<=0)return NULL;
 
-    ConcurrentQueue*queue=(ConcurrentQueue*)malloc(sizeof(ConcurrentQueue));
+    ConcurrentQueue*queue=malloc(sizeof(*queue));
     if(!queue)return NULL;
 
-    queue->buffer=(void**)malloc(sizeof(void*)*capacity);
+    queue->buffer=malloc(sizeof(void*)*capacity);
     if(!queue->buffer){
         free(queue);
         return NULL;

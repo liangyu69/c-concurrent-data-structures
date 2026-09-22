@@ -27,7 +27,7 @@ struct SPSCQueue {
 SPSCQueue* spsc_create(size_t capacity) {
     if (capacity == 0) return NULL;
 
-    SPSCQueue* q = malloc(sizeof(SPSCQueue));
+    SPSCQueue* q = malloc(sizeof(*q));
     if (!q) return NULL;
 
     q->buffer = malloc(capacity * sizeof(void*));

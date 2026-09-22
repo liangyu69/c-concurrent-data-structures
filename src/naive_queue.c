@@ -11,7 +11,7 @@ struct NaiveQueue {
 
 NaiveQueue* naive_create(size_t capacity) {
     if (capacity == 0) return NULL;
-    NaiveQueue* q = malloc(sizeof(NaiveQueue));
+    NaiveQueue* q = malloc(sizeof(*q));
     if (!q) return NULL;
     q->buffer = malloc(capacity * sizeof(void*));
     if (!q->buffer) { free(q); return NULL; }
