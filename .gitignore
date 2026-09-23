@@ -12,6 +12,9 @@ test_compare_tsan
 spsc_tsan
 naive_tsan
 echo_server
+test_hash_map
+test_hash_map_dbg
+test_simple
 
 # ===== 目标文件 / 静态库 / 动态库 =====
 *.o
