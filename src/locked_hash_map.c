@@ -51,3 +51,137 @@ LockedHashMap* locked_hashmap_create(size_t capacity,
 
     return map;
 }
+
+
+
+bool locked_hashmap_put(LockedHashMap* map, void* key, void* value) {
+    if (!map || !key) return false;
+
+    pthread_mutex_lock(&map->mutex);
+
+    /* ---- 临界区开始 ---- */
+
+    size_t index = map->hash_fn(key) % map->capacity;
+
+    HashNode* cur = map->buckets[index];
+    while (cur) {
+        if (map->equal_fn(cur->key, key)) {
+            cur->value = value;            /* 已存在 → 更新 */
+            pthread_mutex_unlock(&map->mutex);
+            return true;
+        }
+        cur = cur->next;
+    }
+
+    HashNode* node = malloc(sizeof(*node));
+    if (!node) {
+        pthread_mutex_unlock(&map->mutex);
+        return false;
+    }
+    node->key   = key;
+    node->value = value;
+    node->next  = map->buckets[index];
+    map->buckets[index] = node;
+    map->size++;
+
+    if ((double)map->size / map->capacity > LOAD_FACTOR_THRESHOLD) {
+        hashmap_resize(map, map->capacity * 2);
+    }
+
+    /* ---- 临界区结束 ---- */
+
+    pthread_mutex_unlock(&map->mutex);
+    return true;
+}
+
+
+void* locked_hashmap_get(LockedHashMap* map, const void* key) {
+    if (!map || !key) return NULL;
+
+    pthread_mutex_lock(&map->mutex);
+    size_t index = map->hash_fn(key) % map->capacity;
+
+    HashNode* cur = map->buckets[index];
+    while (cur) {
+        if (map->equal_fn(cur->key, key)) {
+            void* v = cur->value;
+            pthread_mutex_unlock(&map->mutex);
+            return v;
+        }
+        cur = cur->next;
+    }
+    pthread_mutex_unlock(&map->mutex);
+    return NULL;
+}
+
+bool locked_hashmap_contains(LockedHashMap* map, const void* key) {
+    if (!map || !key) return false;
+
+    pthread_mutex_lock(&map->mutex);
+    size_t index = map->hash_fn(key) % map->capacity;
+
+    HashNode* cur = map->buckets[index];
+    while (cur) {
+        if (map->equal_fn(cur->key, key)) {
+            pthread_mutex_unlock(&map->mutex);
+            return true;
+        }
+        cur = cur->next;
+    }
+    pthread_mutex_unlock(&map->mutex);
+    return false;
+}
+
+
+bool locked_hashmap_remove(LockedHashMap* map, const void* key) {
+    if (!map || !key) return false;
+
+    pthread_mutex_lock(&map->mutex);
+    size_t index = map->hash_fn(key) % map->capacity;
+
+    HashNode* cur  = map->buckets[index];
+    HashNode* prev = NULL;
+
+    while (cur) {
+        if (map->equal_fn(cur->key, key)) {
+            if (prev) prev->next = cur->next;
+            else      map->buckets[index] = cur->next;
+
+            free(cur);
+            map->size--;
+            pthread_mutex_unlock(&map->mutex);
+            return true;
+        }
+        prev = cur;
+        cur  = cur->next;
+    }
+    pthread_mutex_unlock(&map->mutex);
+    return false;
+}
+
+
+size_t locked_hashmap_size(LockedHashMap* map) {
+    if (!map) return 0;
+
+    pthread_mutex_lock(&map->mutex);
+    size_t s = map->size;
+    pthread_mutex_unlock(&map->mutex);
+    return s;
+}
+
+
+void locked_hashmap_destroy(LockedHashMap* map) {
+    if (!map) return;
+
+    for (size_t i = 0; i < map->capacity; i++) {
+        HashNode* cur = map->buckets[i];
+        while (cur) {
+            HashNode* next = cur->next;
+            free(cur);
+            cur = next;
+        }
+    }
+    free(map->buckets);
+    pthread_mutex_destroy(&map->mutex);
+    free(map);
+}
