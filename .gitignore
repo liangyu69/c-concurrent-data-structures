@@ -15,6 +15,9 @@ echo_server
 test_hash_map
 test_hash_map_dbg
 test_simple
+test_locked_hash_map
+test_locked_hash_map_dbg
+test_locked_hash_map_tsan
 
 # ===== 目标文件 / 静态库 / 动态库 =====
 *.o

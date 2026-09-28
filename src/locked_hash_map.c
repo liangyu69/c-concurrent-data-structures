@@ -22,6 +22,27 @@ struct LockedHashMap {
     pthread_mutex_t  mutex;      // ← 全局锁
 };
 
+/* 内部扩容，不加锁（调用者已持锁） */
+static void locked_hashmap_resize(LockedHashMap* map, size_t new_capacity) {
+    HashNode** new_buckets = calloc(new_capacity, sizeof(*new_buckets));
+    if (!new_buckets) return;
+
+    for (size_t i = 0; i < map->capacity; i++) {
+        HashNode* cur = map->buckets[i];
+        while (cur) {
+            HashNode* next = cur->next;
+            size_t new_index = map->hash_fn(cur->key) % new_capacity;
+            cur->next = new_buckets[new_index];
+            new_buckets[new_index] = cur;
+            cur = next;
+        }
+    }
+
+    free(map->buckets);
+    map->buckets  = new_buckets;
+    map->capacity = new_capacity;
+}
+
 
 LockedHashMap* locked_hashmap_create(size_t capacity,
                                      hash_fn_t hash_fn,
@@ -85,7 +106,7 @@ bool locked_hashmap_put(LockedHashMap* map, void* key, void* value) {
     map->size++;
 
     if ((double)map->size / map->capacity > LOAD_FACTOR_THRESHOLD) {
-        hashmap_resize(map, map->capacity * 2);
+        locked_hashmap_resize(map, map->capacity * 2);
     }
 
     /* ---- 临界区结束 ---- */
