@@ -1,4 +1,4 @@
-#include"../include/queue.h"
+#include"../include/blocking_queue.h"
 #include<stdlib.h>
 #include<stdio.h>
 #include<pthread.h>
