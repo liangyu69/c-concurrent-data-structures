@@ -219,8 +219,7 @@ setarch $(uname -m) -R ./locked_hash_map_tsan
 - ☑ Hash Map（单线程基线）
 - ☑ Locked Hash Map（全局锁并发版）
 - ☐ Striped Hash Map（分段锁并发版）
-- ☐ Thread Pool（基于 Blocking Queue，带优雅关闭）
-- ☐ 无锁 MPMC Queue（可选，难度高）
+
 
 ## 参考
 
