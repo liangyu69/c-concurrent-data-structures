@@ -6,8 +6,8 @@
 
 /* 链表节点：存一个键值对 */
 typedef struct HashNode {
-    void*            key;
-    void*            value;
+    void* key;
+    void* value;
     struct HashNode* next;
 } HashNode;
 
