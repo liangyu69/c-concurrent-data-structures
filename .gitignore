@@ -18,6 +18,7 @@ test_simple
 test_locked_hash_map
 test_locked_hash_map_dbg
 test_locked_hash_map_tsan
+striped_hash_map.o
 
 # ===== 目标文件 / 静态库 / 动态库 =====
 *.o
