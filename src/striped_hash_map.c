@@ -268,3 +268,54 @@ void striped_hashmap_destroy(StripedHashMap* map) {
     free(map->stripes);
     free(map);
 }
+
+
+bool striped_hashmap_add(StripedHashMap* map, void* key, int delta) {
+    if (!map || !key) return false;
+
+    size_t h = map->hash_fn(key);
+    size_t stripe_idx = h % map->num_stripes;
+    Stripe* s = &map->stripes[stripe_idx];
+
+    pthread_mutex_lock(&s->mutex);
+
+    size_t index = h % s->capacity;
+    HashNode* cur = s->buckets[index];
+
+    /* key 已存在 → 加 delta */
+    while (cur) {
+        if (map->equal_fn(cur->key, key)) {
+            (*(int*)cur->value) += delta;
+            pthread_mutex_unlock(&s->mutex);
+            return true;
+        }
+        cur = cur->next;
+    }
+
+    /* key 不存在 → 新建，值 = delta */
+    HashNode* node = malloc(sizeof(*node));
+    if (!node) {
+        pthread_mutex_unlock(&s->mutex);
+        return false;
+    }
+    int* v = malloc(sizeof(int));
+    if (!v) {
+        free(node);
+        pthread_mutex_unlock(&s->mutex);
+        return false;
+    }
+    *v = delta;
+
+    node->key   = key;
+    node->value = v;
+    node->next  = s->buckets[index];
+    s->buckets[index] = node;
+    s->size++;
+
+    if ((double)s->size / s->capacity > LOAD_FACTOR_THRESHOLD) {
+        stripe_resize(s, map->hash_fn, s->capacity * 2);
+    }
+
+    pthread_mutex_unlock(&s->mutex);
+    return true;
+}

@@ -89,4 +89,17 @@ size_t striped_hashmap_size(StripedHashMap* map);
  */
 void striped_hashmap_destroy(StripedHashMap* map);
 
+
+/**
+ * @brief 对 key 对应的计数原子加上 delta（key 不存在则新建，值为 delta）。
+ * @param map   哈希表。
+ * @param key   键（非 NULL）。
+ * @param delta 增量（可为负）。
+ * @return 成功 true；失败 false。
+ *
+ * @note 这是为"计数器"场景提供的扩展接口，假设 value 是 int*。
+ * @note 整个过程在段锁内完成，多线程并发累加不丢更新。
+ */
+bool striped_hashmap_add(StripedHashMap* map, void* key, int delta);
+
 #endif /* STRIPED_HASH_MAP_H */
