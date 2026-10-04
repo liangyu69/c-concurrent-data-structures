@@ -10,6 +10,7 @@
   - [SPSC Queue（无锁单生产者单消费者队列）](#spsc-queue无锁单生产者单消费者队列)
   - [Hash Map（单线程哈希表）](#hash-map单线程哈希表)
   - [Locked Hash Map（全局锁哈希表）](#locked-hash-map全局锁哈希表)
+  - [Striped Hash Map（分段锁哈希表）](#striped-hash-map分段锁哈希表)
 - [示例](#示例)
   - [echo_server](#echo_server)
 - [验证方法](#验证方法)
@@ -100,6 +101,44 @@
 
 **验证**：并发测试（4 线程 × 1 万 key，size 精确）、TSan 0 warning、Valgrind 0 leak / 0 error。
 
+### Striped Hash Map（分段锁哈希表）
+
+**定位**：把哈希表分成 N 段，每段一个独立小哈希表 + 一把锁。操作时只锁目标段，不同段可并发。作为"锁粒度优化"的对比版本。
+
+| 项 | 说明 |
+|----|------|
+| 实现 | N 个独立 `Stripe`（桶数组 + size + mutex） |
+| 线程模型 | 多线程，段间并发 |
+| 并发度 | 理想情况 = 段数 |
+| 数据所有权 | 调用者负责 |
+
+**核心设计**：
+
+- 先算段号（`hash % num_stripes`），只锁目标段
+- 每段独立扩容，不影响其他段
+- `size()` 遍历各段求和，是近似值
+
+**局限**：段内仍串行；`size()` 不精确；段数过多反而变慢（管理开销）。
+
+**验证**：并发测试（8 线程 × 50 万 key，size 精确）、TSan 0 warning、Valgrind 0 leak / 0 error。
+
+**性能对比**（4 核，200 万 ops，桶数对等 1048576）：
+
+| 配置 | put | get |
+|------|-----|-----|
+| 全局锁 | 0.677s | 0.152s |
+| 分段锁（4 段） | 0.778s | 0.144s |
+| 分段锁（8 段） | 0.854s | 0.219s |
+
+**结论**：
+
+- **get（纯读）**：分段锁快，并发读无冲突
+- **put（写 + malloc）**：全局锁反而快，因为多线程并发 `malloc` 时分配器内部锁竞争激烈
+- **段数 = 核数时最优**（4 段 > 8 段），段数超过核数后管理开销抵消并发收益
+- 每段桶数太少会导致频繁扩容，反而拖累性能
+
+**分段锁不是"一定快"，适合读多写少、分配少的场景。**
+
 ## 示例
 
 `examples/` 下是验证性示例，用于展示数据结构在真实场景下的可用性。
@@ -136,12 +175,14 @@ concurrent-data-structure/
 │   ├── spsc_queue.h
 │   ├── hash_map.h
 │   ├── locked_hash_map.h
+│   ├── striped_hash_map.h
 │   └── naive_queue.h
 ├── src/
 │   ├── blocking_queue.c
 │   ├── spsc_queue.c
 │   ├── hash_map.c
 │   ├── locked_hash_map.c
+│   ├── striped_hash_map.c
 │   └── naive_queue.c
 ├── tests/
 │   └── ...
@@ -196,7 +237,7 @@ gcc -Wall -Wextra -g -O0 -pthread -std=c11 \
 valgrind --leak-check=full ./test_spsc_dbg
 ```
 
-### Hash Map / Locked Hash Map
+### Hash Map / Locked Hash Map / Striped Hash Map
 
 ```bash
 # 单线程哈希表
@@ -210,6 +251,13 @@ gcc -fsanitize=thread -g -O1 -pthread -std=c11 \
     tests/test_locked_hash_map.c src/locked_hash_map.c \
     -Iinclude -o locked_hash_map_tsan
 setarch $(uname -m) -R ./locked_hash_map_tsan
+
+# 分段锁哈希表：并发 + 性能对比（需同时编译 locked 版）
+gcc -Wall -Wextra -g -O2 -pthread -std=c11 \
+    tests/test_striped_hash_map.c \
+    src/striped_hash_map.c src/locked_hash_map.c \
+    -Iinclude -o test_striped_hash_map
+./test_striped_hash_map
 ```
 
 ## 规划
@@ -218,7 +266,8 @@ setarch $(uname -m) -R ./locked_hash_map_tsan
 - ☑ SPSC Queue（无锁，非阻塞）
 - ☑ Hash Map（单线程基线）
 - ☑ Locked Hash Map（全局锁并发版）
-- ☐ Striped Hash Map（分段锁并发版）
+- ☑ Striped Hash Map（分段锁并发版）
+- ☐ 并发哈希表小应用（词频统计）
 
 
 ## 参考
