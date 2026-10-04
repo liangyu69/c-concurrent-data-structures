@@ -13,6 +13,7 @@
   - [Striped Hash Map（分段锁哈希表）](#striped-hash-map分段锁哈希表)
 - [示例](#示例)
   - [echo_server](#echo_server)
+  - [char_count](#char_count)
 - [验证方法](#验证方法)
 - [目录结构](#目录结构)
 - [构建与测试](#构建与测试)
@@ -117,6 +118,7 @@
 - 先算段号（`hash % num_stripes`），只锁目标段
 - 每段独立扩容，不影响其他段
 - `size()` 遍历各段求和，是近似值
+- 提供 `striped_hashmap_add`：对 key 的计数原子加 delta，用于计数场景
 
 **局限**：段内仍串行；`size()` 不精确；段数过多反而变慢（管理开销）。
 
@@ -155,6 +157,19 @@ gcc -Wall -Wextra -g -O2 -pthread -std=c11 \
     -Iinclude -o echo_server
 ```
 
+### char_count
+
+用 `striped_hash_map` 做的并发字符统计：主线程读文件，按字节切成 N 段，
+4 个线程各统计一段中 a-z 的出现次数，最后汇总。
+
+```bash
+gcc -Wall -Wextra -g -O2 -pthread -std=c11 \
+    examples/char_count.c src/striped_hash_map.c \
+    -Iinclude -o char_count
+
+./char_count examples/sample.txt
+```
+
 ## 验证方法
 
 | 手段 | 目的 |
@@ -187,7 +202,9 @@ concurrent-data-structure/
 ├── tests/
 │   └── ...
 └── examples/
-    └── echo_server.c
+    ├── echo_server.c
+    ├── char_count.c
+    └── sample.txt
 ```
 
 ## 构建与测试
@@ -262,12 +279,18 @@ gcc -Wall -Wextra -g -O2 -pthread -std=c11 \
 
 ## 规划
 
+**数据结构**：
+
 - ☑ Blocking Queue（MPMC，有界阻塞）
 - ☑ SPSC Queue（无锁，非阻塞）
 - ☑ Hash Map（单线程基线）
 - ☑ Locked Hash Map（全局锁并发版）
 - ☑ Striped Hash Map（分段锁并发版）
-- ☐ 并发哈希表小应用（词频统计）
+
+**示例**：
+
+- ☑ echo_server（基于 blocking_queue）
+- ☑ char_count（基于 striped_hash_map）
 
 
 ## 参考
