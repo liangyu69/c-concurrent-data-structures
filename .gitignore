@@ -1,30 +1,19 @@
-# ===== 编译产物：可执行文件 =====
-# 测试可执行
+# ===== 构建目录 =====
+build/
+build-tsan/
+out/
+cmake-build-*/
+
+# ===== 编译产物：可执行文件（根目录下用 gcc 直接编的） =====
 test_queue
-test_queue_dbg
-test_queue_tsan
 test_spsc
-test_spsc_dbg
-test_spsc_tsan
-test_naive_tsan
-test_compare
-test_compare_tsan
-spsc_tsan
-naive_tsan
-echo_server
 test_hash_map
-test_hash_map_dbg
-test_simple
 test_locked_hash_map
-test_locked_hash_map_dbg
-test_locked_hash_map_tsan
-striped_hash_map.o
 test_striped_hash_map
-striped_dbg
-striped_tsan
+test_naive_tsan
+test_spsc_tsan
+echo_server
 char_count
-char_count_dbg
-char_count_tsan
 
 # ===== 目标文件 / 静态库 / 动态库 =====
 *.o
@@ -53,8 +42,3 @@ core.*
 # ===== 操作系统 =====
 .DS_Store
 Thumbs.db
-
-# ===== 构建目录（如果以后用 Makefile/CMake） =====
-build/
-out/
-cmake-build-*/

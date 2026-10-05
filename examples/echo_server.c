@@ -9,7 +9,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "../include/queue.h"
+#include "../include/blocking_queue.h"
 
 #define NTHREADS 4      // 工作线程数量
 #define SBUFSIZE 16     // 缓冲区大小
@@ -46,6 +46,7 @@ void echo_cnt(int connfd){
 }
 
 static void* thread(void*vargp){
+    (void)vargp;
     pthread_detach(pthread_self());
     while(1){
         void*data=queue_pop(g_queue);
