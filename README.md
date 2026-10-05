@@ -149,26 +149,15 @@
 
 用 `blocking_queue` 搭的并发 echo 服务器：主线程 accept 连接，把 fd 放入队列，4 个工作线程从队列取出并处理。
 
-**编译**：
+编译运行见「构建与测试」。
 
-```bash
-gcc -Wall -Wextra -g -O2 -pthread -std=c11 \
-    examples/echo_server.c src/blocking_queue.c \
-    -Iinclude -o echo_server
-```
 
 ### char_count
 
-用 `striped_hash_map` 做的并发字符统计：主线程读文件，按字节切成 N 段，
-4 个线程各统计一段中 a-z 的出现次数，最后汇总。
+用 `striped_hash_map` 做的并发字符统计：主线程读文件，按字节切成 N 段，4 个线程各统计一段中 a-z 的出现次数，最后汇总。
 
-```bash
-gcc -Wall -Wextra -g -O2 -pthread -std=c11 \
-    examples/char_count.c src/striped_hash_map.c \
-    -Iinclude -o char_count
+编译运行见「构建与测试」。
 
-./char_count examples/sample.txt
-```
 
 ## 验证方法
 
@@ -184,6 +173,7 @@ gcc -Wall -Wextra -g -O2 -pthread -std=c11 \
 
 ```text
 concurrent-data-structure/
+├── CMakeLists.txt
 ├── README.md
 ├── include/
 │   ├── blocking_queue.h
@@ -209,72 +199,20 @@ concurrent-data-structure/
 
 ## 构建与测试
 
-统一编译参数：`-Wall -Wextra -pthread -std=c11`；功能测试用 `-O2`，Valgrind 用 `-O0 -g`，TSan 用 `-fsanitize=thread -O1 -g`。
-
-### Blocking Queue
-
 ```bash
-gcc -Wall -Wextra -g -O2 -pthread -std=c11 \
-    tests/test_blocking_queue.c src/blocking_queue.c \
-    -Iinclude -o test_blocking_queue
-./test_blocking_queue
+mkdir build && cd build
+cmake ..
+make
 
-# Valgrind
-gcc -Wall -Wextra -g -O0 -pthread -std=c11 \
-    tests/test_blocking_queue.c src/blocking_queue.c \
-    -Iinclude -o test_blocking_queue_dbg
-valgrind --leak-check=full ./test_blocking_queue_dbg
-```
-
-### SPSC Queue
-
-```bash
-# 功能测试
-gcc -Wall -Wextra -g -O2 -pthread -std=c11 \
-    tests/test_spsc.c src/spsc_queue.c \
-    -Iinclude -o test_spsc
+# 跑测试
+./test_queue
 ./test_spsc
-
-# TSan（SPSC：期望 0 warning）
-gcc -fsanitize=thread -g -O1 -pthread -std=c11 \
-    tests/test_spsc_tsan.c src/spsc_queue.c \
-    -Iinclude -o spsc_tsan
-setarch $(uname -m) -R ./spsc_tsan
-
-# TSan（naive：期望 3 warning）
-gcc -fsanitize=thread -g -O1 -pthread -std=c11 \
-    tests/test_naive_tsan.c src/naive_queue.c \
-    -Iinclude -o naive_tsan
-setarch $(uname -m) -R ./naive_tsan
-
-# Valgrind
-gcc -Wall -Wextra -g -O0 -pthread -std=c11 \
-    tests/test_spsc.c src/spsc_queue.c \
-    -Iinclude -o test_spsc_dbg
-valgrind --leak-check=full ./test_spsc_dbg
-```
-
-### Hash Map / Locked Hash Map / Striped Hash Map
-
-```bash
-# 单线程哈希表
-gcc -Wall -Wextra -g -O2 -pthread -std=c11 \
-    tests/test_hash_map.c src/hash_map.c \
-    -Iinclude -o test_hash_map
 ./test_hash_map
-
-# 全局锁哈希表：并发正确性 + TSan
-gcc -fsanitize=thread -g -O1 -pthread -std=c11 \
-    tests/test_locked_hash_map.c src/locked_hash_map.c \
-    -Iinclude -o locked_hash_map_tsan
-setarch $(uname -m) -R ./locked_hash_map_tsan
-
-# 分段锁哈希表：并发 + 性能对比（需同时编译 locked 版）
-gcc -Wall -Wextra -g -O2 -pthread -std=c11 \
-    tests/test_striped_hash_map.c \
-    src/striped_hash_map.c src/locked_hash_map.c \
-    -Iinclude -o test_striped_hash_map
+./test_locked_hash_map
 ./test_striped_hash_map
+
+# 跑示例（注意：在 build/ 里跑，路径要指回 examples/）
+./char_count ../examples/sample.txt
 ```
 
 ## 规划
